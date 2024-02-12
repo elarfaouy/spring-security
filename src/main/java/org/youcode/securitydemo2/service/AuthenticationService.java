@@ -5,6 +5,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.youcode.securitydemo2.domain.entity.Token;
 import org.youcode.securitydemo2.domain.entity.User;
 import org.youcode.securitydemo2.dto.AuthenticationResponse;
 import org.youcode.securitydemo2.repository.UserRepository;
@@ -38,9 +39,12 @@ public class AuthenticationService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String token = tokenService.generateToken(userFromDb);
+
+        Token refreshToken = tokenService.generateRefreshToken(userFromDb);
+
         return AuthenticationResponse.builder()
                 .accessToken(token)
-                .refreshToken("refresh")
+                .refreshToken(refreshToken.getToken())
                 .tokenExpiration(tokenService.extractExpiration(token))
                 .build();
     }

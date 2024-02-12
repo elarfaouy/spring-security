@@ -5,21 +5,31 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.youcode.securitydemo2.domain.entity.Token;
+import org.youcode.securitydemo2.domain.entity.User;
+import org.youcode.securitydemo2.dto.AuthenticationResponse;
+import org.youcode.securitydemo2.repository.TokenRepository;
 
 import java.security.Key;
-import java.util.Date;
-import java.util.Map;
+import java.time.Instant;
+import java.util.*;
 import java.util.function.Function;
 
 @Service
+@RequiredArgsConstructor
 public class TokenService {
+    private final TokenRepository tokenRepository;
+
     @Value("${application.security.secret-key}")
     private String secretKey;
     @Value("${application.security.token-expiration}")
     private Long tokenExpirationTime;
+    @Value("${application.security.refresh-token-expiration}")
+    private Long refreshTokenExpirationTime;
 
     public String generateToken(UserDetails userDetails) {
         return generateToken(userDetails, Map.of());
@@ -70,5 +80,46 @@ public class TokenService {
     public Key getSigningKey() {
         byte[] decodedKey = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(decodedKey);
+    }
+
+    public Token generateRefreshToken(User user) {
+        // before generating a new refresh token, we need to revoke all existing refresh tokens for the user
+        revokeRefreshTokensByUser(user);
+
+        Token token = new Token();
+        token.setRevoked(false);
+        token.setToken(Base64.getEncoder().encodeToString(UUID.randomUUID().toString().getBytes()));
+        token.setExpiryDate(Instant.now().plusMillis(refreshTokenExpirationTime));
+        token.setUser(user);
+
+        return tokenRepository.save(token);
+    }
+
+    public void revokeRefreshTokensByUser(User user) {
+        List<Token> tokens = tokenRepository.findByUser(user);
+        tokens.forEach(token -> token.setRevoked(true));
+        tokenRepository.saveAll(tokens);
+    }
+
+    public AuthenticationResponse generateNewAccessToken(String refreshToken) {
+        Token token = tokenRepository.findByToken(refreshToken)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+
+        if (token.getRevoked()) {
+            throw new RuntimeException("Refresh token has been revoked");
+        }
+
+        if (token.getExpiryDate().isBefore(Instant.now())) {
+            throw new RuntimeException("Refresh token has expired");
+        }
+
+        User user = token.getUser();
+        String accessToken = generateToken(user);
+
+        return AuthenticationResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenExpiration(extractExpiration(accessToken))
+                .build();
     }
 }
