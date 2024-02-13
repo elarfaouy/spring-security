@@ -10,18 +10,18 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/secured")
-@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-public class SecuredController {
+@RequestMapping("/api/admin/secured")
+@PreAuthorize("hasRole('ADMIN')")
+public class SecuredAdminController {
     @GetMapping
-    @PreAuthorize("hasAuthority('Can Read User')")
+    @PreAuthorize("hasAuthority('Can Read Admin')")
     public ResponseEntity<Map<String, Object>> secured() {
-        return ResponseEntity.ok(Map.of("message", "GET: This is a secured endpoint"));
+        return ResponseEntity.ok(Map.of("message", "GET: This is a secured admin endpoint"));
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('Can Write User')")
+    @PreAuthorize("hasAuthority('Can Write Admin')")
     public ResponseEntity<Map<String, Object>> securedPost() {
-        return ResponseEntity.ok(Map.of("message", "POST: This is a secured endpoint"));
+        return ResponseEntity.ok(Map.of("message", "POST: This is a secured admin endpoint"));
     }
 }
