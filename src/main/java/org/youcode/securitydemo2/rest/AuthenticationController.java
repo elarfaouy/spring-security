@@ -13,6 +13,8 @@ import org.youcode.securitydemo2.dto.UserInfoResponse;
 import org.youcode.securitydemo2.service.AuthenticationService;
 import org.youcode.securitydemo2.service.TokenService;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -60,6 +62,22 @@ public class AuthenticationController {
                         .username("anonymous")
                         .role("anonymous")
                         .build()
+        );
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && authentication.getPrincipal() instanceof User user) {
+            authenticationService.logout(user);
+
+            return ResponseEntity.ok(
+                    Map.of("message", "You have been logged out")
+            );
+        }
+
+        return ResponseEntity.ok(
+                Map.of("message", "You are not logged in")
         );
     }
 }

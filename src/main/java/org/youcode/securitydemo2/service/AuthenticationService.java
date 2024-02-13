@@ -3,6 +3,7 @@ package org.youcode.securitydemo2.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.youcode.securitydemo2.domain.entity.Token;
@@ -49,5 +50,10 @@ public class AuthenticationService {
                 .refreshToken(refreshToken.getToken())
                 .tokenExpiration(tokenService.extractExpiration(token))
                 .build();
+    }
+
+    public void logout(User user) {
+        tokenService.revokeRefreshTokensByUser(user);
+        SecurityContextHolder.clearContext();
     }
 }
