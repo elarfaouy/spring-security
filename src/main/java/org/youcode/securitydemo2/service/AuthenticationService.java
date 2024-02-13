@@ -22,11 +22,13 @@ public class AuthenticationService {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         User saved = userRepository.save(user);
 
-        String token = tokenService.generateToken(saved);
+        Token refreshToken = tokenService.generateRefreshToken(saved);
+
+        String token = tokenService.generateToken(saved, refreshToken);
 
         return AuthenticationResponse.builder()
                 .accessToken(token)
-                .refreshToken("refresh")
+                .refreshToken(refreshToken.getToken())
                 .tokenExpiration(tokenService.extractExpiration(token))
                 .build();
     }
@@ -38,9 +40,9 @@ public class AuthenticationService {
                 .findByUsername(user.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        String token = tokenService.generateToken(userFromDb);
-
         Token refreshToken = tokenService.generateRefreshToken(userFromDb);
+
+        String token = tokenService.generateToken(userFromDb, refreshToken);
 
         return AuthenticationResponse.builder()
                 .accessToken(token)

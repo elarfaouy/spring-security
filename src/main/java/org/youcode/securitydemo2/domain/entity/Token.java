@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "tokens")
@@ -16,9 +17,14 @@ public class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-    private String token;
     private Boolean revoked;
     private Instant expiryDate;
+
+    @Column(unique = true)
+    private UUID uuid;
+
+    @Column(unique = true)
+    private String token;
 
     @ManyToOne
     private User user;

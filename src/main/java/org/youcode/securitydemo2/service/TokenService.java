@@ -31,8 +31,8 @@ public class TokenService {
     @Value("${application.security.refresh-token-expiration}")
     private Long refreshTokenExpirationTime;
 
-    public String generateToken(UserDetails userDetails) {
-        return generateToken(userDetails, Map.of());
+    public String generateToken(UserDetails userDetails, Token refreshToken) {
+        return generateToken(userDetails, Map.of("uuid", refreshToken.getUuid()));
     }
 
     public String generateToken(UserDetails userDetails, Map<String, Object> claims) {
@@ -48,7 +48,7 @@ public class TokenService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token) && !isRefreshTokenRevoked(token);
     }
 
     public boolean isTokenExpired(String token) {
@@ -61,6 +61,10 @@ public class TokenService {
 
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    public UUID extractUuid(String token) {
+        return extractClaim(token, claims -> UUID.fromString((String) claims.get("uuid")));
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -82,6 +86,13 @@ public class TokenService {
         return Keys.hmacShaKeyFor(decodedKey);
     }
 
+    public Boolean isRefreshTokenRevoked(String token) {
+        UUID uuid = extractUuid(token);
+        Token refreshToken = tokenRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("Invalid uuid for refresh token"));
+        return refreshToken.getRevoked();
+    }
+
     public Token generateRefreshToken(User user) {
         // before generating a new refresh token, we need to revoke all existing refresh tokens for the user
         revokeRefreshTokensByUser(user);
@@ -90,6 +101,7 @@ public class TokenService {
         token.setRevoked(false);
         token.setToken(Base64.getEncoder().encodeToString(UUID.randomUUID().toString().getBytes()));
         token.setExpiryDate(Instant.now().plusMillis(refreshTokenExpirationTime));
+        token.setUuid(UUID.randomUUID());
         token.setUser(user);
 
         return tokenRepository.save(token);
@@ -114,7 +126,7 @@ public class TokenService {
         }
 
         User user = token.getUser();
-        String accessToken = generateToken(user);
+        String accessToken = generateToken(user, token);
 
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)
